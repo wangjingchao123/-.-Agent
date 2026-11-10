@@ -1,0 +1,86 @@
+    # ================= 面向老人的友好报告（无技术黑话） =================
+    issue_items = [
+        ("左膝下蹲过深", cnt["deep_l"], "#EF4444"),
+        ("右膝下蹲过深", cnt["deep_r"], "#EF4444"),
+        ("左膝超过脚尖", cnt["toe_l"],  "#F59E0B"),
+        ("右膝超过脚尖", cnt["toe_r"],  "#F59E0B"),
+        ("左腿撑得太直", cnt["lock_l"], "#F59E0B"),
+        ("右腿撑得太直", cnt["lock_r"], "#F59E0B"),
+    ]
+    issue_items = sorted([x for x in issue_items if x[1] > 0], key=lambda x: -x[1])
+    top3 = issue_items[:3]
+    _maxv = top3[0][1] if top3 else 1
+
+    def _bar(name, n, color):
+        pct = max(6, int(round(n / _maxv * 100)))
+        return f"""
+    <div style="margin:13px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;
+                  font-size:16px;font-weight:700;color:#0F172A;">
+        <span>{name}</span><span style="color:{color};font-weight:800;">{n} 次</span>
+      </div>
+      <div style="background:#F1F5F9;border-radius:999px;height:12px;margin-top:7px;overflow:hidden;">
+        <div style="width:{pct}%;background:{color};height:100%;border-radius:999px;"></div>
+      </div>
+    </div>"""
+
+    bars_html = "".join(_bar(n, v, c) for n, v, c in top3)
+    if not bars_html:
+        bars_html = ('<div style="font-size:16px;color:#047857;font-weight:700;padding:10px 0;">'
+                     '本次没有发现需要调整的动作，您做得很稳。</div>')
+
+    if red_total > 0:
+        diag_emoji, diag_title, diag_desc = "🔴", "发现需要重点关注的动作", \
+            "本次已为您完整扫描整套动作，综合风险偏高，下面是最需要留意的地方。"
+        head_bg = "#FEF2F2"; head_bar = "#EF4444"
+    elif yellow_total > 0:
+        diag_emoji, diag_title, diag_desc = "🟡", "整体不错，有几个小细节", \
+            "本次已为您完整扫描整套动作，没有大问题，只有几个小地方可以再调整。"
+        head_bg = "#FFFBEB"; head_bar = "#F59E0B"
+    else:
+        diag_emoji, diag_title, diag_desc = "🟢", "动作很标准", \
+            "本次已为您完整扫描整套动作，没有发现明显风险，继续保持。"
+        head_bg = "#F0FDF4"; head_bar = "#10B981"
+
+    if top3:
+        _top_name = top3[0][0]
+        coach_msg = (f"您这次练习很认真，不过在做「{taiji_name}」的时候，"
+                     f"{_top_name}的次数偏多。别灰心，下次把重心稍微抬高一点、慢慢来，我一直陪着您。")
+    else:
+        coach_msg = "您这套动作打得很稳，几乎挑不出毛病，继续保持就好！"
+
+    report = f"""
+<div style="background:#FFFFFF;border-radius:16px;overflow:hidden;
+            box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #E2E8F0;">
+  <div style="border-left:6px solid {head_bar};background:{head_bg};padding:20px 24px 18px;">
+    <div style="font-size:21px;font-weight:800;color:#0F172A;line-height:1.5;">
+      综合诊断：{diag_emoji} {diag_title}
+    </div>
+    <div style="margin-top:8px;font-size:16px;color:#475569;line-height:1.8;">{diag_desc}</div>
+  </div>
+  <div style="padding:18px 24px 10px;">
+    <div style="display:flex;gap:14px;">
+      <div style="flex:1;background:#FEF2F2;border:1px solid #FECACA;
+                  border-radius:14px;padding:16px 10px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:#DC2626;line-height:1.1;">{red_total}</div>
+        <div style="color:#B91C1C;font-size:15px;font-weight:700;margin-top:4px;">需要重点关注</div>
+      </div>
+      <div style="flex:1;background:#FFFBEB;border:1px solid #FDE68A;
+                  border-radius:14px;padding:16px 10px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:#D97706;line-height:1.1;">{yellow_total}</div>
+        <div style="color:#92400E;font-size:15px;font-weight:700;margin-top:4px;">建议调整</div>
+      </div>
+    </div>
+    <div style="font-size:18px;font-weight:800;color:#0F172A;margin:18px 0 2px;">最需要留意的 3 个地方</div>
+    {bars_html}
+    <div style="margin-top:16px;background:#ECFDF5;border:1px solid #A7F3D0;
+                border-radius:14px;padding:16px 18px;">
+      <div style="font-size:16px;font-weight:800;color:#065F46;margin-bottom:6px;">💬 教练寄语</div>
+      <div style="font-size:16px;color:#064E3B;line-height:1.9;">{coach_msg}</div>
+    </div>
+    <div style="margin-top:14px;font-size:14.5px;color:#64748B;line-height:1.7;">
+      本报告由 AI 姿态识别生成，仅作居家练习参考，不替代医生的专业诊断。
+    </div>
+  </div>
+</div>
+"""

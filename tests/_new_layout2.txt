@@ -1,0 +1,44 @@
+    with gr.Row(equal_height=False, elem_classes=["main-row"]):
+        # 左：窄栏
+        with gr.Column(scale=1, min_width=360, elem_classes=["left-col"]):
+            with gr.Group(elem_classes=["card-ui"]):
+                gr.Markdown("### 步骤 1 ｜ 长辈健康建档", elem_classes=["card-title"])
+                age_slider = gr.Slider(minimum=50, maximum=95, value=65, step=1, label="老人年龄（岁）")
+                chronic_box = gr.Dropdown(choices=["高血压", "膝关节炎", "糖尿病", "严重心血管疾病", "骨质疏松"],
+                                          multiselect=True, label="基础慢病（可多选）", value=[])
+                recent_radio = gr.Dropdown(choices=["状态良好", "轻微疲劳", "是，存在关节剧痛/头晕"],
+                                           multiselect=False, label="近期身体状态", value="状态良好")
+            with gr.Group(elem_classes=["card-ui"]):
+                gr.Markdown("### 步骤 2 ｜ 上传练习视频", elem_classes=["card-title"])
+                vid_in = gr.Video(label="上传太极练习视频", sources=["upload"], height=240)
+                taiji_select = gr.Dropdown(
+                    choices=TEMPLATE_NAMES, label="请选择练习的太极招式",
+                    value=DEFAULT_ACTION)
+                btn_start = gr.Button("开始安全评估", elem_classes=["primary-btn", "full-btn"])
+        # 右：宽栏
+        with gr.Column(scale=1.2, min_width=520, elem_classes=["right-col"]):
+            with gr.Group(elem_classes=["card-ui"]):
+                gr.HTML('<div class="card-title"><h3>骨架与关节角度标注</h3></div>')
+                out_img = gr.Image(label="定式帧标注图", type="numpy",
+                                   value=None, interactive=False,
+                                   height=350)
+            with gr.Group(elem_classes=["card-ui"]):
+                gr.HTML('<div class="card-title"><h3>评估报告</h3></div>')
+                risk_html = gr.HTML(
+                    '<div style="color:#94A3B8;font-size:15px;padding:12px 0;">'
+                    '完成评估后，此处将显示风险检测报告</div>')
+            with gr.Group(elem_classes=["card-ui"]):
+                gr.HTML('<div class="card-title"><h3>亲情健康周报</h3></div>')
+                report_btn = gr.Button("生成亲情周报（模拟推送子女）", elem_classes="secondary-btn")
+                report_out = gr.Markdown(
+                    value='<div style="color:#94A3B8;font-size:15px;padding:12px 0;">'
+                          '完成评估后，此处将显示亲情周报</div>',
+                    label="", elem_classes=["weekly-area"])
+
+    btn_start.click(
+        fn=evaluate,
+        inputs=[vid_in, taiji_select, age_slider, chronic_box, recent_radio],
+        outputs=[out_img, risk_html, report_out])
+    report_btn.click(
+        fn=generate_family_report,
+        outputs=[report_out])

@@ -1,0 +1,227 @@
+def evaluate(video_file, taiji_name, age, chronic_list, recent_status):
+    """
+    多帧时序采样版：
+      每隔 SAMPLE_STEP 帧采样一帧 → 逐帧做膝角 / 超脚尖 / 支撑腿锁死判定
+      → 汇总错误次数 → 取"蹲得最深"的最差帧画图 → 输出结构化诊断报告
+    前置拦截、动态阈值逻辑与旧版完全一致。
+    """
+    global last_eval_data
+    chronic_list = chronic_list or []
+
+    # ================= 前置准入拦截（原样保留） =================
+    if "严重心血管疾病" in chronic_list or recent_status == "是，存在关节剧痛/头晕":
+        return None, """
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.05);
+            border-left:6px solid #EF4444;padding:26px;">
+  <div style="font-size:20px;font-weight:800;color:#B91C1C;margin-bottom:12px;">运动风险拦截</div>
+  <div style="font-size:15.5px;line-height:2.0;color:#7F1D1D;">
+    检测到 <b>极高运动风险</b>（严重心血管疾病 / 近期关节剧痛、头晕）。<br>
+    本系统暂不适合使用，请务必遵从医生指导，不要自行练习太极。
+  </div>
+</div>""", ""
+
+    if not video_file:
+        return None, '<div style="color:#B45309;font-size:16px;padding:8px 0;">请先上传一段练习视频</div>', ""
+
+    # ================= 动态安全阈值（健康档案驱动，原样保留） =================
+    if "膝关节炎" in chronic_list:
+        red_thresh, yellow_thresh = 100.0, 110.0
+    else:
+        red_thresh, yellow_thresh = 90.0, 100.0
+
+    TOE_LIMIT = 0.02      # 膝-踝横向偏移超过该值判超脚尖
+    LOCK_ANGLE = 175.0    # 膝角大于该值判支撑腿锁死（过伸）
+    SAMPLE_STEP = 8       # 每隔多少帧采样一次
+
+    cap = cv2.VideoCapture(video_file)
+    if not cap.isOpened():
+        return None, '<div style="color:#B45309;font-size:16px;padding:8px 0;">视频文件打不开，请重新上传</div>', ""
+
+    # 计数表：左/右分别统计
+    cnt = {"deep_l": 0, "deep_r": 0, "mid_l": 0, "mid_r": 0,
+           "toe_l": 0, "toe_r": 0, "lock_l": 0, "lock_r": 0}
+    samples, skipped = 0, 0
+    worst = None          # (角度, 侧别, 帧号)
+    worst_pack = None     # (原始帧, pose_landmarks, 角度, 侧别)
+
+    # 单段视频使用一个 Pose 实例即可（跨视频复用才会串扰）
+    pose_local = mp_pose.Pose(static_image_mode=False, model_complexity=1,
+                              min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    frame_idx = 0
+    # 每侧的关键点编号与计数键
+    sides = [("左", "left_hip", "left_knee", "left_ankle", "l"),
+             ("右", "right_hip", "right_knee", "right_ankle", "r")]
+    try:
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if frame_idx % SAMPLE_STEP == 0:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                res = pose_local.process(rgb)
+                plm = res.pose_landmarks
+
+                if plm is None:
+                    skipped += 1
+                else:
+                    lm = plm.landmark
+                    core = [KP["left_hip"], KP["right_hip"], KP["left_knee"], KP["right_knee"],
+                            KP["left_ankle"], KP["right_ankle"]]
+                    if np.mean([lm[i].visibility for i in core]) < 0.4:
+                        skipped += 1
+                    else:
+                        samples += 1
+                        for side_name, hip_k, knee_k, ankle_k, tag in sides:
+                            ang = calculate_angle(
+                                (lm[KP[hip_k]].x, lm[KP[hip_k]].y),
+                                (lm[KP[knee_k]].x, lm[KP[knee_k]].y),
+                                (lm[KP[ankle_k]].x, lm[KP[ankle_k]].y))
+                            if ang is None:
+                                continue
+
+                            # 1) 深蹲过深（红）/ 临界区间（黄）
+                            if ang < red_thresh:
+                                cnt["deep_" + tag] += 1
+                            elif ang < yellow_thresh:
+                                cnt["mid_" + tag] += 1
+
+                            # 2) 膝盖超脚尖（图像坐标横向偏移）
+                            toe_offset = abs(lm[KP[knee_k]].x - lm[KP[ankle_k]].x)
+                            if toe_offset > TOE_LIMIT:
+                                cnt["toe_" + tag] += 1
+
+                            # 3) 支撑腿锁死（膝过伸）
+                            if ang > LOCK_ANGLE:
+                                cnt["lock_" + tag] += 1
+
+                            # 4) 记录最差帧（角度最小 = 蹲得最深）
+                            if worst is None or ang < worst[0]:
+                                worst = (ang, side_name, frame_idx)
+                                worst_pack = (frame.copy(), plm, ang, side_name)
+            frame_idx += 1
+    finally:
+        cap.release()
+        pose_local.close()
+
+    if samples < 3:
+        return None, ('<div style="color:#B45309;font-size:16px;padding:8px 0;">'
+                      f'有效采样仅 {samples} 帧（跳过 {skipped} 帧），请确保全身入镜、光线均匀后重拍</div>'), ""
+
+    # ================= 在"最差帧"上画骨架 + 红色大字 =================
+    worst_frame, worst_lm, worst_ang, worst_side = worst_pack
+    h, w = worst_frame.shape[:2]
+    draw_img = worst_frame.copy()
+    mp_drawing.draw_landmarks(
+        draw_img, worst_lm, mp_pose.POSE_CONNECTIONS,
+        landmark_drawing_spec=POINT_SPEC,
+        connection_drawing_spec=LINE_SPEC,
+    )
+    knee_key = "left_knee" if worst_side == "左" else "right_knee"
+    # 只有真正低于安全下限时才标红，否则用绿色（无违规时"最差帧"不应误导）
+    _is_red = worst_ang < red_thresh
+    put_angle_badge(draw_img,
+                    (worst_lm.landmark[KP[knee_key]].x, worst_lm.landmark[KP[knee_key]].y),
+                    worst_ang, _is_red, h, w, side="L" if worst_side == "左" else "R")
+    draw_img = cv2.cvtColor(draw_img, cv2.COLOR_BGR2RGB)
+
+    # ================= 汇总数字 =================
+    deep_total = cnt["deep_l"] + cnt["deep_r"]
+    mid_total = cnt["mid_l"] + cnt["mid_r"]
+    toe_total = cnt["toe_l"] + cnt["toe_r"]
+    lock_total = cnt["lock_l"] + cnt["lock_r"]
+    red_total = deep_total
+    yellow_total = mid_total + toe_total + lock_total
+
+    # ================= 医生建议（按计数与慢病分支） =================
+    advice = []
+    if deep_total > 0:
+        advice.append("出现多次深蹲过深，请务必抬高重心、减小下蹲幅度，避免半月板与髌股关节持续受压。")
+    if toe_total > 0:
+        advice.append("存在多次膝盖超脚尖，练习时注意膝盖与脚尖方向一致，不要让膝盖顶到脚尖前面。")
+    if lock_total > 0:
+        advice.append("支撑腿出现完全锁死（过伸），建议保持微屈，给膝关节留缓冲。")
+    if "膝关节炎" in chronic_list:
+        advice.append("考虑到膝关节炎病史，安全下限已提高到 100°，建议以高位动作练习为主，减少低位定式。")
+    if "高血压" in chronic_list:
+        advice.append("高血压人群请放慢起身与俯身节奏，避免突然低头，出现头晕立刻停下休息。")
+    if not advice:
+        advice.append("本次练习姿态规范，未发现明显风险，继续保持温和练习即可。")
+
+    # ================= 结构化 HTML 报告（等价 Markdown 诊断书排版） =================
+    def row(label, value, danger=False):
+        c = "#B91C1C" if danger else "#334155"
+        return (f'<div style="display:flex;justify-content:space-between;gap:16px;'
+                f'padding:9px 0;border-bottom:1px solid #EEF2F7;font-size:16.5px;">'
+                f'<span style="color:#64748B;white-space:nowrap;">{label}</span>'
+                f'<b style="color:{c};text-align:right;">{value}</b></div>')
+
+    if red_total > 0:
+        badge, badge_bg = "高危风险", "#EF4444"
+    elif yellow_total > 0:
+        badge, badge_bg = "需注意", "#F59E0B"
+    else:
+        badge, badge_bg = "安全通过", "#10B981"
+
+    report = f"""
+<div style="background:#FFFFFF;border-radius:16px;overflow:hidden;
+            box-shadow:0 4px 20px rgba(0,0,0,0.06);border:1px solid #E2E8F0;">
+  <div style="border-left:6px solid {badge_bg};background:{'#FEF2F2' if red_total else ('#FFFBEB' if yellow_total else '#F0FDF4')};
+              padding:20px 24px 16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div style="font-size:22px;font-weight:800;color:#0F172A;">评估报告 · 多帧时序版</div>
+      <span style="background:{badge_bg};color:#fff;font-size:16px;font-weight:700;
+                   padding:7px 18px;border-radius:999px;">{badge}</span>
+    </div>
+    <div style="margin-top:14px;">
+      {row("【评估招式】", taiji_name)}
+      {row("【动态阈值】", f"安全下限 {red_thresh:.0f}°（随健康档案调整）")}
+      {row("【采样帧数】", f"有效 {samples} 帧｜跳过 {skipped} 帧｜每 {SAMPLE_STEP} 帧采样")}
+      {row("【综合诊断】", f"高危 {red_total} 次｜警告 {yellow_total} 次", danger=bool(red_total))}
+    </div>
+  </div>
+  <div style="padding:18px 24px 22px;">
+    <div style="font-size:18px;font-weight:800;color:#0F172A;margin-bottom:6px;">【详细错误清单】</div>
+    {row("左膝深蹲过深", f"{cnt['deep_l']} 次", danger=bool(cnt['deep_l']))}
+    {row("右膝深蹲过深", f"{cnt['deep_r']} 次", danger=bool(cnt['deep_r']))}
+    {row("左膝超脚尖", f"{cnt['toe_l']} 次")}
+    {row("右膝超脚尖", f"{cnt['toe_r']} 次")}
+    {row("左腿支撑锁死", f"{cnt['lock_l']} 次")}
+    {row("右腿支撑锁死", f"{cnt['lock_r']} 次")}
+    {row("临界屈膝（黄区）", f"左 {cnt['mid_l']} 次｜右 {cnt['mid_r']} 次")}
+    <div style="font-size:18px;font-weight:800;color:#0F172A;margin:16px 0 6px;">【医生建议】</div>
+    <ul style="margin:0;padding-left:22px;color:#0F172A;font-size:16.5px;line-height:1.9;">
+      {''.join(f'<li>{a}</li>' for a in advice)}
+    </ul>
+    <div style="margin-top:14px;font-size:15.5px;color:#475569;line-height:1.8;">
+      本报告由 AI 多帧时序采样生成，最差帧角度 {worst_ang:.1f}°（{worst_side}膝，第 {worst[2]} 帧），
+      仅作居家练习参考，不替代医嘱。
+    </div>
+  </div>
+</div>
+"""
+
+    # ================= 供亲情周报使用的汇总条目（带 emoji 以便周报计数） =================
+    warn_list = []
+    if cnt["deep_l"]:
+        warn_list.append(f"\U0001F534【高危】左膝深蹲过深 {cnt['deep_l']} 次，低于安全下限 {red_thresh:.0f}°")
+    if cnt["deep_r"]:
+        warn_list.append(f"\U0001F534【高危】右膝深蹲过深 {cnt['deep_r']} 次，低于安全下限 {red_thresh:.0f}°")
+    if cnt["toe_l"]:
+        warn_list.append(f"\U0001F7E1【注意】左膝超脚尖 {cnt['toe_l']} 次")
+    if cnt["toe_r"]:
+        warn_list.append(f"\U0001F7E1【注意】右膝超脚尖 {cnt['toe_r']} 次")
+    if cnt["lock_l"]:
+        warn_list.append(f"\U0001F7E1【注意】左腿支撑锁死 {cnt['lock_l']} 次")
+    if cnt["lock_r"]:
+        warn_list.append(f"\U0001F7E1【注意】右腿支撑锁死 {cnt['lock_r']} 次")
+    if not warn_list:
+        warn_list.append("\U0001F7E2【安全】多帧采样未发现明显风险，动作规范")
+
+    last_eval_data = {
+        "age": age, "chronic_list": chronic_list, "recent_status": recent_status,
+        "taiji_name": taiji_name, "similarity": None,
+        "warn_list": warn_list, "red_thresh": red_thresh, "best_match": None,
+    }
+
+    return draw_img, report, generate_family_report()

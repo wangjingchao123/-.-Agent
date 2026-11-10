@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>银龄安动 - 训练流程联调测试</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand"><span class="brand-icon">🧘</span><span class="brand-name">银龄安动</span></div>
+      <div class="topbar-right"><button id="btn-voice-set" class="chip">🔊 语音：开</button></div>
+    </header>
+    <main id="main">
+      <section id="screen-home" class="screen active">
+        <div class="hero">
+          <h1 class="hero-title">银龄安动</h1>
+          <button id="btn-start" class="btn btn-primary btn-xl">开始健康问询</button>
+        </div>
+      </section>
+      <section id="screen-interview" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="home">← 返回</button>
+          <h2>健康问询</h2>
+          <div id="interview-progress" class="progress-text">第 1 / 5 题</div>
+        </div>
+        <div id="interview-body">
+          <div id="interview-question" class="question-text">您好！请问您的年龄段是？</div>
+          <div id="interview-hint" class="hint">您可以直接说出答案，或点按下方按钮</div>
+          <div id="interview-answers" class="answers"></div>
+          <div id="interview-heard" class="heard" hidden>听到您说：<span id="heard-text"></span></div>
+        </div>
+        <div class="interview-controls">
+          <button id="btn-speak-question" class="btn btn-round">🔊 再听一遍</button>
+          <button id="btn-mic" class="btn btn-round btn-mic">🎤 说话</button>
+          <button id="btn-skip-voice" class="btn btn-round">⌨️ 手动回答</button>
+        </div>
+      </section>
+      <section id="screen-plan" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="home">← 返回</button>
+          <h2>您的专属健身方案</h2>
+          <div id="plan-tags" class="progress-text"></div>
+        </div>
+        <div id="plan-list" class="plan-list"></div>
+        <div class="plan-actions">
+          <button id="btn-start-train" class="btn btn-primary btn-xl">开始训练</button>
+          <button id="btn-replan" class="btn btn-ghost">重新回答问询</button>
+        </div>
+      </section>
+      <section id="screen-train" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="plan">← 退出训练</button>
+          <h2 id="train-title">训练中</h2>
+          <div id="train-progress" class="progress-text">0 / 0</div>
+        </div>
+        <button id="btn-emergency" class="btn-emergency" type="button">🆘 紧急暂停 · 身体不舒服</button>
+        <div class="train-layout">
+          <div class="camera-box">
+            <video id="camera-video" playsinline></video>
+            <canvas id="pose-canvas"></canvas>
+            <div id="camera-status" class="camera-status">正在开启摄像头…</div>
+            <div id="wait-confirm" class="wait-confirm" hidden>
+              <div class="wait-icon">👌</div>
+              <div class="wait-big">准备好了请比 OK 手势</div>
+              <div class="wait-or">— 或者 —</div>
+              <div class="wait-big">对我说"可以"</div>
+              <button id="btn-wait-start" class="btn btn-primary wait-btn">直接开始训练</button>
+            </div>
+          </div>
+          <div class="train-side">
+            <div id="train-current" class="train-card">
+              <div class="train-step-label">当前动作</div>
+              <div id="train-exercise-name" class="train-exercise-name">—</div>
+              <div id="train-exercise-desc" class="train-exercise-desc"></div>
+              <div class="train-count-row">
+                <div class="train-count"><span id="train-count-num">0</span><small>次</small></div>
+                <div class="train-timer"><span id="train-time-num">0</span><small>秒</small></div>
+              </div>
+              <div id="train-tip" class="train-tip">跟着语音提示慢慢来</div>
+            </div>
+            <div id="feeling-panel" class="feeling-panel" hidden>
+              <div class="feeling-title">您现在感觉怎么样？</div>
+              <button class="btn btn-primary btn-xl" data-feeling="good">很好，继续</button>
+              <button class="btn btn-warn btn-xl" data-feeling="tired">有点累，轻松一些</button>
+              <button class="btn btn-danger btn-xl" data-feeling="dizzy">头晕 / 不舒服，停止</button>
+            </div>
+          </div>
+        </div>
+        <div id="demo-overlay" class="demo-overlay" hidden>
+          <div class="demo-box">
+            <div class="demo-badge">📹 动作示范</div>
+            <div id="demo-exercise-name" class="demo-exercise-name"></div>
+            <div id="demo-desc" class="demo-desc"></div>
+            <div class="demo-stage">
+              <div class="demo-figure">🧘‍♂️</div>
+              <div id="demo-step-text" class="demo-step-text">准备…</div>
+            </div>
+            <div id="demo-step-dots" class="demo-step-dots"></div>
+            <div class="demo-progress"><div id="demo-progress-bar" class="demo-progress-bar"></div></div>
+            <button id="btn-demo-close" class="btn btn-primary btn-xl">我看完了，准备好了 👍</button>
+            <p class="demo-hint">先看一遍示范，关掉后咱们再一起开始</p>
+          </div>
+        </div>
+        <div id="emergency-overlay" class="emergency-overlay" hidden>
+          <div class="emergency-box">
+            <div class="emergency-title">已为您暂停</div>
+            <div class="emergency-msg">您先坐好，慢慢休息一会儿。<br>如果有 <strong>心慌、胸痛、头晕严重</strong>，<br>请马上联系家属，或者拨打 <span class="hotline">120</span></div>
+            <button id="btn-emergency-home" class="btn btn-ghost btn-xl">回到首页</button>
+          </div>
+        </div>
+      </section>
+      <section id="screen-summary" class="screen">
+        <div class="hero">
+          <h1 class="hero-title">今日锻炼完成！</h1>
+          <div id="summary-stats" class="summary-stats"></div>
+          <div class="plan-actions">
+            <button id="btn-again" class="btn btn-primary btn-xl">再练一次</button>
+            <button id="btn-home" class="btn btn-ghost">回到首页</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer id="disclaimer">⚠️ 免责声明：本工具仅作为健身辅助，不能替代医生、康复师的诊疗。</footer>
+  </div>
+  <div id="flow-result" hidden>RESULT:PENDING</div>
+  <div id="flow-fails"></div>
+
+  <script src="../js/voice.js"></script>
+  <script src="../js/health.js"></script>
+  <script src="../js/planner.js"></script>
+  <script src="../js/pose.js"></script>
+  <script src="../js/train.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    /* 训练全流程联调：方案生成 → 训练启动 → 动作渲染 → 计数推进 → 摄像头降级 → dizzy停止 → 总结渲染
+     * 无头环境禁用语音，走纯定时器路径，避免 TTS hang 干扰流程推进
+     */
+    window.addEventListener('load', function () {
+      var results = [];
+      function check(name, cond, detail) {
+        results.push({ name: name, ok: !!cond });
+        if (!cond) {
+          console.log('[流程失败] ' + name + (detail ? ' -> ' + detail : ''));
+          var f = document.getElementById('flow-fails');
+          var d = document.createElement('div');
+          d.textContent = 'FAILCASE:' + name + (detail ? ' -> ' + detail : '');
+          f.appendChild(d);
+        }
+      }
+      /* 禁用语音：speak 立即 resolve，流程靠 setInterval 推进 */
+      SA.voice.setEnabled(false);
+
+      /* 1. 构造健康标签（健康老人）并生成方案 */
+      SA.state.health = { ageGroup: 'young', hypertension: false, kneeArthritis: false, osteoporosis: false, fallHistory: false, standing: 'good' };
+      SA.state.plan = SA.planner.generatePlan(SA.state.health);
+      check('方案生成非空(>=6)', SA.state.plan.length >= 6, 'len=' + SA.state.plan.length);
+
+      /* 2. 启动训练 → 进入示范阶段（不自动开练） */
+      SA.startTraining();
+      check('进入训练屏', document.getElementById('screen-train').classList.contains('active'));
+      check('动作名称已渲染', document.getElementById('train-exercise-name').textContent !== '—');
+      check('进度显示 1/N', /1 \/ \d+/.test(document.getElementById('train-progress').textContent),
+        document.getElementById('train-progress').textContent);
+      check('初始阶段为demo', SA.train.getPhase() === 'demo', 'phase=' + SA.train.getPhase());
+      var demoOv = document.getElementById('demo-overlay');
+      check('示范弹窗已显示', demoOv && !demoOv.hidden && getComputedStyle(demoOv).display !== 'none',
+        demoOv ? ('hidden=' + demoOv.hidden) : '无弹窗节点');
+      check('示范动作名已填充', document.getElementById('demo-exercise-name').textContent !== '');
+
+      /* 3. 关闭示范 → 等待确认阶段（不计数） */
+      SA.train.closeDemo();
+      check('关闭示范后阶段为waiting', SA.train.getPhase() === 'waiting', 'phase=' + SA.train.getPhase());
+      check('示范弹窗已关闭', demoOv && demoOv.hidden && getComputedStyle(demoOv).display === 'none');
+      var waitEl = document.getElementById('wait-confirm');
+      check('等待确认层已显示', waitEl && !waitEl.hidden && getComputedStyle(waitEl).display !== 'none',
+        waitEl ? ('hidden=' + waitEl.hidden) : '无等待层节点');
+      check('等待阶段不计数', document.getElementById('train-count-num').textContent === '0');
+
+      /* 4. 确认开始 → 正式训练阶段，计数推进 */
+      SA.train.beginTraining();
+      check('确认后阶段为training', SA.train.getPhase() === 'training', 'phase=' + SA.train.getPhase());
+      check('等待确认层已隐藏', waitEl && waitEl.hidden && getComputedStyle(waitEl).display === 'none');
+
+      /* 5. 等待摄像头降级 + 首个计数 tick（REP_PACE=3s） */
+      setTimeout(function () {
+        var cam = document.getElementById('camera-status').textContent;
+        check('摄像头降级语音引导', cam.indexOf('语音引导') >= 0, cam);
+        var cnt = document.getElementById('train-count-num').textContent;
+        check('计数已推进(>=1)', parseInt(cnt, 10) >= 1, 'cnt=' + cnt);
+
+        /* 4. 模拟头晕：点击 dizzy 按钮应立即停止并跳总结 */
+        var dizzyBtn = document.querySelector('[data-feeling="dizzy"]');
+        /* 先强制让训练处于可响应体感的状态：直接调用内部处理 */
+        SA.train.stop('dizzy');
+        setTimeout(function () {
+          check('头晕停止跳总结屏', document.getElementById('screen-summary').classList.contains('active'));
+          var cards = document.querySelectorAll('#summary-stats .stat-card');
+          check('总结统计卡渲染(>=2)', cards.length >= 2, 'cards=' + cards.length);
+          var v0 = cards[0] ? cards[0].querySelector('.v').textContent : '';
+          check('完成数格式正确', /\d+ \/ \d+/.test(v0), v0);
+
+          /* 6. 紧急暂停专项：重新训练 → 点紧急大按钮 → 立即停止+提示层显示+不跳总结 */
+          check('emergencyStop已导出', typeof SA.train.emergencyStop === 'function');
+          SA.startTraining();
+          /* 回归：训练中紧急弹窗不得自动弹出（CSS display 不得覆盖 hidden） */
+          var ovPre = document.getElementById('emergency-overlay');
+          check('训练中紧急弹窗不自动弹出',
+            ovPre && ovPre.hidden && getComputedStyle(ovPre).display === 'none',
+            ovPre ? ('hidden=' + ovPre.hidden + ' display=' + getComputedStyle(ovPre).display) : '无弹窗节点');
+          var fp = document.getElementById('feeling-panel');
+          check('体感面板初始隐藏',
+            fp && fp.hidden && getComputedStyle(fp).display === 'none',
+            fp ? ('hidden=' + fp.hidden + ' display=' + getComputedStyle(fp).display) : '无面板节点');
+          var emgBtn = document.getElementById('btn-emergency');
+          check('紧急按钮存在', !!emgBtn);
+          if (emgBtn) emgBtn.click();
+          var ov = document.getElementById('emergency-overlay');
+          check('紧急提示层已显示', ov && !ov.hidden && getComputedStyle(ov).display !== 'none');
+          check('紧急暂停留在训练屏', document.getElementById('screen-train').classList.contains('active'));
+          check('紧急暂停不跳总结', !document.getElementById('screen-summary').classList.contains('active'));
+          /* 紧急暂停应同时清理示范弹窗与等待确认层，阶段归位idle */
+          check('紧急暂停隐藏示范弹窗', demoOv && demoOv.hidden && getComputedStyle(demoOv).display === 'none');
+          check('紧急暂停隐藏等待确认层', waitEl && waitEl.hidden && getComputedStyle(waitEl).display === 'none');
+          check('紧急暂停后阶段为idle', SA.train.getPhase() === 'idle', 'phase=' + SA.train.getPhase());
+
+          /* 5. 输出结果 */
+          var passed = results.filter(function (r) { return r.ok; }).length;
+          var marker = document.getElementById('flow-result');
+          marker.textContent = 'RESULT:' + (passed === results.length ? 'PASS' : 'FAIL') + ' ' + passed + '/' + results.length;
+          console.log('[流程联调] RESULT:' + (passed === results.length ? 'PASS' : 'FAIL') + ' ' + passed + '/' + results.length);
+        }, 300);
+      }, 4500);
+    });
+  </script>
+</body>
+</html>

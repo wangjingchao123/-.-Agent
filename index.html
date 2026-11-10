@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>银龄安动 · 居家安全健身智能体</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <span class="brand-icon">🧘</span>
+        <span class="brand-name">银龄安动</span>
+      </div>
+      <div class="topbar-right">
+        <button id="btn-voice-set" class="chip" title="开关语音">🔊 语音：开</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- 首页 -->
+      <section id="screen-home" class="screen active">
+        <div class="hero">
+          <h1 class="hero-title">银龄安动</h1>
+          <p class="hero-sub">AI 居家安全健身智能体</p>
+          <p class="hero-desc">先聊几句您的身体状况，<br>再为您安排安全、轻松的居家锻炼。</p>
+          <button id="btn-start" class="btn btn-primary btn-xl">开始健康问询</button>
+          <p class="hero-tip">建议在光线充足的房间，使用手机或电脑摄像头进行。</p>
+        </div>
+      </section>
+
+      <!-- 健康问询 -->
+      <section id="screen-interview" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="home">← 返回</button>
+          <h2>健康问询</h2>
+          <div id="interview-progress" class="progress-text">第 1 / 5 题</div>
+        </div>
+        <div id="interview-body">
+          <div id="interview-question" class="question-text">您好！请问您的年龄段是？</div>
+          <div id="interview-hint" class="hint">您可以直接说出答案，或点按下方按钮</div>
+          <div id="interview-answers" class="answers"></div>
+          <div id="interview-heard" class="heard" hidden>听到您说：<span id="heard-text"></span></div>
+        </div>
+        <div class="interview-controls">
+          <button id="btn-speak-question" class="btn btn-round">🔊 再听一遍</button>
+          <button id="btn-mic" class="btn btn-round btn-mic">🎤 说话</button>
+          <button id="btn-skip-voice" class="btn btn-round">⌨️ 手动回答</button>
+        </div>
+      </section>
+
+      <!-- 方案展示 -->
+      <section id="screen-plan" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="home">← 返回</button>
+          <h2>您的专属健身方案</h2>
+          <div id="plan-tags" class="progress-text"></div>
+        </div>
+        <div id="plan-list" class="plan-list"></div>
+        <div class="plan-actions">
+          <button id="btn-start-train" class="btn btn-primary btn-xl">开始训练</button>
+          <button id="btn-replan" class="btn btn-ghost">重新回答问询</button>
+        </div>
+        <!-- 24式太极拳课程区块（taiji.js 渲染，按健康标签过滤） -->
+        <div id="taiji-course-section" class="taiji-course-section" hidden>
+          <div class="taiji-course-head">
+            <h3>🧘 24式太极拳课程</h3>
+            <span class="taiji-course-count-label">适合您的招式：<strong id="taiji-course-count">0</strong> 式</span>
+          </div>
+          <p class="taiji-course-sub">节奏舒缓，跟着语音慢慢来；与上方康复方案任选其一即可</p>
+          <div id="taiji-course-list" class="plan-list"></div>
+          <div class="plan-actions">
+            <button id="btn-start-taiji" class="btn btn-primary btn-xl" disabled>开始太极课程</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 训练 -->
+      <section id="screen-train" class="screen">
+        <div class="screen-head">
+          <button class="btn btn-back" data-back="plan">← 退出训练</button>
+          <h2 id="train-title">训练中</h2>
+          <div id="train-progress" class="progress-text">0 / 0</div>
+        </div>
+        <button id="btn-emergency" class="btn-emergency" type="button">🆘 紧急暂停 · 身体不舒服</button>
+        <div class="train-layout">
+          <div class="camera-box">
+            <video id="camera-video" playsinline></video>
+            <canvas id="pose-canvas"></canvas>
+            <div id="camera-status" class="camera-status">正在开启摄像头…</div>
+            <!-- 等待确认开始：大字提示覆盖在摄像头画面上，画面正常预览 -->
+            <div id="wait-confirm" class="wait-confirm" hidden>
+              <div class="wait-icon">👌</div>
+              <div class="wait-big">准备好了请比 OK 手势</div>
+              <div class="wait-or">— 或者 —</div>
+              <div class="wait-big">对我说"可以"</div>
+              <button id="btn-wait-start" class="btn btn-primary wait-btn">直接开始训练</button>
+            </div>
+          </div>
+          <div class="train-side">
+            <div id="train-current" class="train-card">
+              <div class="train-step-label">当前动作</div>
+              <div id="train-exercise-name" class="train-exercise-name">—</div>
+              <div id="train-exercise-desc" class="train-exercise-desc"></div>
+              <div class="train-count-row">
+                <div class="train-count"><span id="train-count-num">0</span><small>次</small></div>
+                <div class="train-timer"><span id="train-time-num">0</span><small>秒</small></div>
+              </div>
+              <div id="train-tip" class="train-tip">跟着语音提示慢慢来</div>
+            </div>
+            <div id="feeling-panel" class="feeling-panel" hidden>
+              <div class="feeling-title">您现在感觉怎么样？</div>
+              <button class="btn btn-primary btn-xl" data-feeling="good">很好，继续</button>
+              <button class="btn btn-warn btn-xl" data-feeling="tired">有点累，轻松一些</button>
+              <button class="btn btn-danger btn-xl" data-feeling="dizzy">头晕 / 不舒服，停止</button>
+            </div>
+          </div>
+        </div>
+        <!-- 示范视频弹窗：动作开始前播放步骤示范，看完关闭后等待确认 -->
+        <div id="demo-overlay" class="demo-overlay" hidden>
+          <div class="demo-box">
+            <div class="demo-badge">📹 动作示范</div>
+            <div id="demo-exercise-name" class="demo-exercise-name"></div>
+            <div id="demo-desc" class="demo-desc"></div>
+            <div class="demo-stage">
+              <div class="demo-figure">🧘‍♂️</div>
+              <div id="demo-step-text" class="demo-step-text">准备…</div>
+            </div>
+            <div id="demo-step-dots" class="demo-step-dots"></div>
+            <div class="demo-progress"><div id="demo-progress-bar" class="demo-progress-bar"></div></div>
+            <button id="btn-demo-close" class="btn btn-primary btn-xl">我看完了，准备好了 👍</button>
+            <p class="demo-hint">先看一遍示范，关掉后咱们再一起开始</p>
+          </div>
+        </div>
+        <!-- 紧急暂停提示层：大字就医提醒 -->
+        <div id="emergency-overlay" class="emergency-overlay" hidden>
+          <div class="emergency-box">
+            <div class="emergency-title">已为您暂停</div>
+            <div class="emergency-msg">您先坐好，慢慢休息一会儿。<br>如果有 <strong>心慌、胸痛、头晕严重</strong>，<br>请马上联系家属，或者拨打 <span class="hotline">120</span></div>
+            <button id="btn-emergency-home" class="btn btn-ghost btn-xl">回到首页</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 总结 -->
+      <section id="screen-summary" class="screen">
+        <div class="hero">
+          <h1 class="hero-title">今日锻炼完成！</h1>
+          <div id="summary-stats" class="summary-stats"></div>
+          <div class="plan-actions">
+            <button id="btn-again" class="btn btn-primary btn-xl">再练一次</button>
+            <button id="btn-home" class="btn btn-ghost">回到首页</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer id="disclaimer">
+      ⚠️ 免责声明：本工具仅作为健身辅助，不能替代医生、康复师的诊疗。锻炼中如有头晕、胸闷、疼痛等不适，请立即停止并及时就医。
+    </footer>
+  </div>
+
+  <script src="js/voice.js"></script>
+  <script src="js/health.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/taiji.js"></script>
+  <script src="js/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <script src="js/train.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

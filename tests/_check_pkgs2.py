@@ -1,0 +1,6 @@
+import cv2, mediapipe, gradio, numpy, ultralytics
+print("opencv-python:", cv2.__version__)
+print("mediapipe:", mediapipe.__version__)
+print("gradio:", gradio.__version__)
+print("numpy:", numpy.__version__)
+print("ultralytics:", ultralytics.__version__)

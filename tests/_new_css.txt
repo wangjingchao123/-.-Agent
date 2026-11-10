@@ -1,0 +1,266 @@
+/* ---------- 1. 全局：极浅灰蓝 + 呼吸感 ---------- */
+.gradio-container {
+    background: #F8FAFC !important;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", Arial, sans-serif !important;
+    font-size: 16px !important;
+    line-height: 1.7 !important;
+    color: #334155 !important;
+    max-width: 1320px !important;
+    margin: 0 auto !important;
+    padding: 12px 16px 28px !important;
+}
+body, .dark, .app { background: #F8FAFC !important; }
+html, body, gradio-app { background: #F8FAFC !important; }
+
+/* 强制浅色：无论系统是否深色，所有容器一律白底、深色文字 */
+.gradio-container .block, .gradio-container .form,
+.gradio-container .gr-box, .gradio-container fieldset,
+.dark .block, .dark .form, .dark .gr-box, .dark fieldset {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.dark, .dark * { color: #0F172A !important; }
+
+/* 顶层卡片：白底 + 16px 圆角 + 柔和阴影 */
+.card-ui {
+    background: #FFFFFF !important;
+    border: 1px solid #EEF2F7 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+}
+
+/* ---------- 2. 顶部 Banner ---------- */
+#hero-banner {
+    background: linear-gradient(135deg, #0EA5E9 0%, #10B981 100%);
+    border-radius: 18px;
+    padding: 40px 30px;
+    margin: 8px 0 26px 0;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(16, 185, 129, 0.18);
+}
+#hero-banner .hero-title {
+    font-size: 30px !important;
+    font-weight: 800 !important;
+    color: #FFFFFF !important;
+    letter-spacing: 1.2px;
+    line-height: 1.35;
+    margin: 0 0 12px 0;
+}
+#hero-banner .hero-sub {
+    font-size: 16.5px !important;
+    font-weight: 700;
+    color: #FFFFFF !important;
+    letter-spacing: 0.4px;
+    margin: 0;
+}
+
+/* ---------- 3. 卡片容器 ---------- */
+.card-ui {
+    background: #FFFFFF !important;
+    border: 1px solid #EEF2F7 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+    padding: 26px 24px !important;
+    margin-bottom: 20px !important;
+}
+.card-title h3, .card-title h2 {
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    border-left: 4px solid #10B981;
+    padding-left: 12px;
+    margin: 0 0 20px 0 !important;
+    line-height: 1.4;
+}
+.card-ui .block, .card-ui .form, .card-ui .wrap { margin-bottom: 14px !important; }
+label span, .label-wrap span {
+    font-size: 15.5px !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    letter-spacing: .2px;
+}
+.gradio-container .label-wrap,
+.gradio-container .block-title,
+.gradio-container .block-info,
+.gradio-container .info,
+.card-ui label .label-wrap {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0 6px 0 !important;
+    margin: 0 !important;
+}
+.card-ui .block-label, .card-ui label > span { background: transparent !important; }
+.card-ui .styler,
+.card-ui .block {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.card-ui .form {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+.card-ui .block > .wrap > span,
+.card-ui fieldset > .wrap > span,
+.card-ui span.svelte-1gfkn6j {
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0 0 7px 0 !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+}
+.card-ui span {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* ---------- 4. 表单控件胶囊化 ---------- */
+.opt-pill input[type="checkbox"],
+.opt-pill input[type="radio"] {
+    width: 18px !important;
+    height: 18px !important;
+    accent-color: #10B981 !important;
+    cursor: pointer !important;
+}
+.opt-pill label:has(input[type="checkbox"]),
+.opt-pill label:has(input[type="radio"]) {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: #F1F5F9 !important;
+    color: #334155 !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 999px !important;
+    padding: 10px 18px !important;
+    margin: 5px 6px 5px 0 !important;
+    font-size: 15.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all .18s ease !important;
+}
+.opt-pill label:has(input[type="checkbox"]):hover,
+.opt-pill label:has(input[type="radio"]):hover {
+    opacity: 0.85 !important;
+    transform: translateY(-1px);
+}
+.opt-pill label:has(input:checked) {
+    background: #10B981 !important;
+    color: #FFFFFF !important;
+    border-color: #10B981 !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.30) !important;
+}
+.opt-pill label:has(input:checked) span,
+.opt-pill label:has(input:checked) * {
+    color: #FFFFFF !important;
+}
+.opt-pill label:has(input:checked) input {
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    position: absolute !important;
+}
+.opt-pill label input[type="checkbox"],
+.opt-pill label input[type="radio"] {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ---------- 5. 按钮 ---------- */
+.primary-btn {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: 1px !important;
+    padding: 14px 18px !important;
+    width: 100%;
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.28) !important;
+    transition: transform .2s ease, box-shadow .2s ease !important;
+    cursor: pointer !important;
+}
+.primary-btn:hover {
+    transform: scale(1.02) !important;
+    box-shadow: 0 12px 28px rgba(16, 185, 129, 0.42) !important;
+}
+.secondary-btn {
+    background: #FFFFFF !important;
+    color: #0EA5E9 !important;
+    border: 2px solid #BAE6FD !important;
+    border-radius: 8px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    padding: 12px 18px !important;
+    transition: all .2s ease !important;
+    cursor: pointer !important;
+}
+.secondary-btn:hover {
+    background: #F0F9FF !important;
+    border-color: #0EA5E9 !important;
+    transform: scale(1.02) !important;
+}
+
+/* ---------- 6. 滑块：薄荷绿 ---------- */
+input[type="range"] { accent-color: #10B981 !important; }
+.card-ui input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px !important;
+    border-radius: 999px !important;
+    background: #E2E8F0 !important;
+}
+.card-ui input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    width: 22px !important;
+    height: 22px !important;
+    margin-top: -8px !important;
+    border-radius: 50% !important;
+    background: #10B981 !important;
+    border: 2px solid #FFFFFF !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.45) !important;
+    cursor: pointer !important;
+}
+
+/* ---------- 7. 媒体区与周报区 ---------- */
+.media-area {
+    background: #F8FAFC !important;
+    border: 1px solid #EEF2F7 !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+    min-height: 340px;
+}
+.weekly-area {
+    background: #FFFFFF !important;
+    border: 1px solid #EEF2F7 !important;
+    border-left: 4px solid #10B981 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+    padding: 22px !important;
+    min-height: 190px;
+    color: #0F766E !important;
+    font-size: 17px !important;
+    line-height: 1.95 !important;
+}
+.weekly-area .prose, .weekly-area .prose *,
+.weekly-area p, .weekly-area li, .weekly-area span,
+.weekly-area div, .weekly-area h1, .weekly-area h2, .weekly-area h3 {
+    color: #0F172A !important;
+    font-size: 17px !important;
+    line-height: 1.95 !important;
+    background: transparent !important;
+}
+.weekly-area strong, .weekly-area b {
+    color: #065F46 !important;
+    font-weight: 800 !important;
+}
+.weekly-area ul, .weekly-area ol { list-style: none !important; padding-left: 0 !important; }
+.weekly-area li::marker { display: none !important; }
+footer { display: none !important; }

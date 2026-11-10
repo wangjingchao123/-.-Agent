@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>太极课程集成测试</title>
+  <style>body{font-family:"Microsoft YaHei";padding:16px;font-size:16px}</style>
+</head>
+<body>
+  <h1>24式太极课程集成测试</h1>
+  <div id="test-summary">运行中…</div>
+  <div id="test-result-marker" hidden>RESULT:PENDING</div>
+
+  <!-- 方案屏 DOM 片段（含太极区块容器） -->
+  <div id="plan-tags" class="progress-text"></div>
+  <div id="plan-list" class="plan-list"></div>
+  <div id="taiji-course-section" class="taiji-course-section" hidden>
+    <div class="taiji-course-head">
+      <h3>24式太极拳课程</h3>
+      <span class="taiji-course-count-label">适合您的招式：<strong id="taiji-course-count">0</strong> 式</span>
+    </div>
+    <div id="taiji-course-list" class="plan-list"></div>
+    <div class="plan-actions">
+      <button id="btn-start-taiji" class="btn btn-primary btn-xl" disabled>开始太极课程</button>
+    </div>
+  </div>
+
+  <script>
+    window.SATest = {
+      assert: function (c, m) { if (!c) throw new Error(m || '断言失败'); }
+    };
+    /* 主控最小桩 */
+    window.SA = {
+      $: function (id) { return document.getElementById(id); },
+      state: { health: null, plan: [] },
+      startTrainingCalled: false,
+      startTraining: function () { SA.startTrainingCalled = true; }
+    };
+  </script>
+  <script src="../js/voice.js"></script>
+  <script src="../js/planner.js"></script>
+  <script src="../js/taiji.js"></script>
+  <script>
+    (function () {
+      var failed = 0, msg = '', passed = 0;
+      function ok(name) { passed++; }
+      try {
+        /* T1: 模块加载与数据完整性 */
+        SATest.assert(SA.taiji && SA.taiji.TAIJI24, 'SA.taiji 应已暴露');
+        SATest.assert(SA.taiji.TAIJI24.length === 24, 'TAIJI24 应为24式，实际 ' + SA.taiji.TAIJI24.length);
+        SATest.assert(SA.taiji.getSafeCourse && SA.taiji.renderCourse && SA.taiji.startCourse, '核心方法应已暴露');
+        ok('T1 模块加载');
+
+        /* T2: 健康良好者可练全部24式 */
+        var all = SA.taiji.getSafeCourse({ standing: 'good' });
+        SATest.assert(all.length === 24, 'good站立应24式全可练，实际 ' + all.length);
+        ok('T2 good全通过');
+
+        /* T3: 站立能力差者无安全招式 */
+        var poor = SA.taiji.getSafeCourse({ standing: 'poor' });
+        SATest.assert(poor.length === 0, 'poor站立应0式（太极均需站立），实际 ' + poor.length);
+        ok('T3 poor全过滤');
+
+        /* T4: 跌倒史者过滤蹬脚/下势类高危招式 */
+        var fall = SA.taiji.getSafeCourse({ standing: 'good', fallHistory: true });
+        var fallIds = fall.map(function (ex) { return ex.id; });
+        SATest.assert(fallIds.indexOf('tj-youjiao') === -1, '跌倒史不应有右蹬脚');
+        SATest.assert(fallIds.indexOf('tj-zuojiao') === -1, '跌倒史不应有左蹬脚');
+        SATest.assert(fallIds.indexOf('tj-xiashi-zuo') === -1, '跌倒史不应有左下势独立');
+        SATest.assert(fallIds.indexOf('tj-qishi') !== -1, '起势无禁忌应保留');
+        SATest.assert(fall.length < 24 && fall.length > 0, '跌倒史应过滤部分招式：' + fall.length);
+        ok('T4 跌倒史过滤');
+
+        /* T5: 80岁以上仅低强度 */
+        var old = SA.taiji.getSafeCourse({ standing: 'good', ageGroup: '80s' });
+        old.forEach(function (ex) {
+          SATest.assert(ex.intensity === 'low', '80s仅低强度，出现 ' + ex.name + ' ' + ex.intensity);
+        });
+        SATest.assert(old.length > 0 && old.length < 24, '80s应保留部分低强度招式：' + old.length);
+        ok('T5 80s低强度');
+
+        /* T6: renderCourse 渲染正确 */
+        SA.state.health = { standing: 'good' };
+        SA.taiji.renderCourse();
+        var sec = document.getElementById('taiji-course-section');
+        SATest.assert(sec.hidden === false, '有安全招式时区块应显示');
+        var items = document.querySelectorAll('#taiji-course-list .plan-item');
+        SATest.assert(items.length === 24, '应渲染24条目，实际 ' + items.length);
+        SATest.assert(document.getElementById('taiji-course-count').textContent === '24', '计数应为24');
+        SATest.assert(document.getElementById('btn-start-taiji').disabled === false, '按钮应可用');
+        ok('T6 渲染正确');
+
+        /* T7: 无安全招式时区块隐藏 */
+        SA.state.health = { standing: 'poor' };
+        SA.taiji.renderCourse();
+        SATest.assert(sec.hidden === true, 'poor者太极区块应隐藏');
+        ok('T7 空课程隐藏');
+
+        /* T8: onScreenChange 链式挂载生效 */
+        SA.state.health = { standing: 'good' };
+        sec.hidden = true; /* 重置后靠回调恢复 */
+        SA.onScreenChange('plan');
+        SATest.assert(sec.hidden === false, '进入plan屏应触发太极渲染');
+        /* 非plan屏不渲染 */
+        SA.state.health = { standing: 'poor' };
+        SA.onScreenChange('home');
+        ok('T8 链式挂载');
+
+        /* T9: 零侵入——planner 常规方案不受太极模块影响 */
+        SA.state.health = { ageGroup: '70s', hypertension: true, standing: 'assist' };
+        var plan = SA.planner.generatePlan(SA.state.health);
+        var cats = {};
+        plan.forEach(function (ex) { cats[ex.category] = true; });
+        SATest.assert(!cats['24式太极'], '常规方案不应混入太极动作');
+        SATest.assert(plan.length >= 4, '常规方案仍应至少4项：' + plan.length);
+        ok('T9 planner零侵入');
+
+        /* T10: startCourse 写入 plan 并进入训练 */
+        SA.state.health = { standing: 'good' };
+        SA.startTrainingCalled = false;
+        SA.taiji.startCourse();
+        SATest.assert(SA.state.plan.length === 24, 'startCourse应写入24式方案，实际 ' + SA.state.plan.length);
+        SATest.assert(SA.state.plan[0].id === 'tj-qishi', '首式应为起势');
+        SATest.assert(SA.startTrainingCalled, '应调用startTraining');
+        ok('T10 启动课程');
+
+        /* T11: startCourse 无安全招式时不进入训练 */
+        SA.state.health = { standing: 'poor' };
+        SA.startTrainingCalled = false;
+        SA.taiji.startCourse();
+        SATest.assert(SA.startTrainingCalled === false, 'poor者不应进入训练');
+        ok('T11 空课程防护');
+      } catch (e) { failed = 1; msg = e.message; }
+
+      var sum = document.getElementById('test-summary');
+      var marker = document.getElementById('test-result-marker');
+      if (!failed) { sum.textContent = '太极集成测试全部通过（' + passed + ' 组）'; sum.style.color = '#2e7d32'; marker.textContent = 'RESULT:PASS'; }
+      else { sum.textContent = '失败：' + msg; sum.style.color = '#c62828'; marker.textContent = 'RESULT:FAIL'; }
+    })();
+  </script>
+</body>
+</html>

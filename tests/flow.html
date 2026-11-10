@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>方案渲染集成测试</title>
+  <style>body{font-family:"Microsoft YaHei";padding:16px;font-size:16px}</style>
+</head>
+<body>
+  <h1>方案页渲染集成测试</h1>
+  <div id="test-summary">运行中…</div>
+  <div id="test-result-marker" hidden>RESULT:PENDING</div>
+
+  <!-- 方案屏 DOM 片段 -->
+  <div id="plan-tags" class="progress-text"></div>
+  <div id="plan-list" class="plan-list"></div>
+
+  <script>
+    /* 极简断言 + 结果标记 */
+    window.SATest = {
+      assert: function (c, m) { if (!c) throw new Error(m || '断言失败'); }
+    };
+    /* 主控最小桩：提供 SA.$ 与 SA.state */
+    window.SA = {
+      $: function (id) { return document.getElementById(id); },
+      state: { health: null, plan: [] }
+    };
+  </script>
+  <script src="../js/voice.js"></script>
+  <script src="../js/planner.js"></script>
+  <script>
+    (function () {
+      var failed = 0, msg = '';
+      try {
+        /* 场景：70岁、高血压、需扶靠站立 */
+        SA.state.health = { ageGroup: '70s', hypertension: true, standing: 'assist' };
+        SA.state.plan = SA.planner.generatePlan(SA.state.health);
+        SATest.assert(SA.state.plan.length >= 4, '方案应至少4个动作，实际 ' + SA.state.plan.length);
+
+        SA.planner.render();
+
+        var items = document.querySelectorAll('#plan-list .plan-item');
+        SATest.assert(items.length === SA.state.plan.length, '渲染条目数应等于方案数 ' + SA.state.plan.length + '，实际 ' + items.length);
+
+        var tagsText = document.getElementById('plan-tags').textContent;
+        SATest.assert(tagsText.indexOf('高血压') !== -1, '标签应含高血压：' + tagsText);
+        SATest.assert(tagsText.indexOf('70-79岁') !== -1, '标签应含年龄段');
+
+        /* 确认高危动作未出现在渲染结果 */
+        var names = Array.prototype.map.call(items, function (it) { return it.querySelector('h3').textContent; });
+        SATest.assert(names.indexOf('五劳七伤往后瞧') === -1, '高血压者不应出现转头动作');
+        SATest.assert(names.indexOf('扶椅起坐') !== -1 || names.indexOf('脚跟脚尖站立') !== -1, 'assist应保留扶靠平衡动作');
+
+        /* 场景2：站立能力差 */
+        SA.state.health = { standing: 'poor' };
+        SA.state.plan = SA.planner.generatePlan(SA.state.health);
+        SA.state.plan.forEach(function (ex) {
+          SATest.assert(ex.minStanding === 'poor', 'poor者动作均应可坐位完成：' + ex.name);
+        });
+      } catch (e) { failed = 1; msg = e.message; }
+
+      var sum = document.getElementById('test-summary');
+      var marker = document.getElementById('test-result-marker');
+      if (!failed) { sum.textContent = '渲染集成测试通过'; sum.style.color = '#2e7d32'; marker.textContent = 'RESULT:PASS'; }
+      else { sum.textContent = '失败：' + msg; sum.style.color = '#c62828'; marker.textContent = 'RESULT:FAIL'; }
+    })();
+  </script>
+</body>
+</html>
